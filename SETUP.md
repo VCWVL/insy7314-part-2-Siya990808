@@ -1,6 +1,6 @@
 # Secure Banking Portal - Setup Guide
 
-## 🚀 Quick Start (No Docker Required!)
+## Quick Start (No Docker Required!)
 
 ### Prerequisites
 - **Node.js** (v18 or higher) - [Download here](https://nodejs.org/)
@@ -32,7 +32,7 @@ npm install
 
 #### 4. Start the Application
 
-**Option A: Start both servers separately (Recommended for development)**
+**Start both servers separately (Recommended for development)**
 ```bash
 # Terminal 1: Start backend
 cd server
@@ -43,45 +43,14 @@ cd client
 npm start
 ```
 
-**Option B: Quick start backend only (for API testing)**
-```bash
-cd server
-npm start
-```
 
 #### 5. Access the Application
 - **Frontend (React)**: http://localhost:3000
 - **Backend API**: http://localhost:5000
 - **Secure HTTPS**: https://localhost:5001
 
-## 🛠️ Troubleshooting
 
-### Database Connection Issues
-```bash
-cd server
-npm run atlas    # Test Atlas connection
-```
-
-**Common solutions:**
-- Check internet connection
-- Verify MongoDB Atlas cluster is running
-- Contact team lead if connection fails
-
-### Port Already in Use
-```bash
-# Kill process on port 3000 (frontend)
-npx kill-port 3000
-
-# Kill process on port 5000 (backend)
-npx kill-port 5000
-```
-
-### SSL Certificate Warnings
-- Browser may show "Not Secure" warnings for HTTPS
-- This is normal for self-signed certificates in development
-- Click "Advanced" → "Proceed to localhost"
-
-## 🔧 Available Scripts
+## Useful Scripts
 
 ### Backend Scripts
 ```bash
@@ -99,7 +68,7 @@ npm run build      # Build for production
 npm test           # Run tests
 ```
 
-## 🛡️ Security Features Implemented
+## Security Features Implemented
 
 ✅ **Password Security**: bcrypt hashing with salt  
 ✅ **Input Validation**: RegEx patterns for all inputs  
@@ -110,7 +79,7 @@ npm test           # Run tests
 ✅ **Session Security**: Secure cookie configuration  
 ✅ **Database Security**: MongoDB Atlas with authentication  
 
-## 📱 Testing the Application
+## Testing the Application
 
 1. **Start both servers** (frontend + backend)
 2. **Open browser** to http://localhost:3000
@@ -118,20 +87,3 @@ npm test           # Run tests
 4. **Test login** functionality
 5. **Test payment forms** with validation
 6. **Check HTTPS** at https://localhost:5001
-
-## 🤝 Team Collaboration
-
-- **No Docker required** - Just Node.js
-- **Shared database** - MongoDB Atlas (cloud)
-- **Version control** - All code in Git
-- **Environment** - Configured automatically
-
-## 📞 Need Help?
-
-1. **Check logs** in terminal for error messages
-2. **Run tests** with `npm run test-db`
-3. **Contact team lead** if issues persist
-
----
-
-**Ready to go!** 🎉 The application uses cloud database, so no local database setup needed.
