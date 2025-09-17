@@ -1,4 +1,4 @@
-// server/routes/auth.js - EXCEEDS STANDARD Authentication
+// server/routes/auth.js 
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
@@ -481,3 +481,20 @@ router.get('/security-status', authenticateToken, async (req, res) => {
 });
 
 module.exports = router;
+
+// References:
+// NIST (2017) 'Digital Identity Guidelines: Authentication and Lifecycle Management', 
+// NIST Special Publication 800-63B. Available at: https://doi.org/10.6028/NIST.SP.800-63b
+//
+// Bonneau, J. et al. (2012) 'The quest to replace passwords: A framework for comparative evaluation of web authentication schemes', 
+// 2012 IEEE Symposium on Security and Privacy, pp. 553-567.
+//
+// OWASP Foundation (2021) 'Authentication Cheat Sheet', 
+// Available at: https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html (Accessed: 17 September 2025).
+//
+// Auth0 Inc. (2023) 'JSON Web Tokens Introduction', 
+// Available at: https://jwt.io/introduction (Accessed: 17 September 2025).
+//
+// Jones, M. et al. (2015) 'JSON Web Token (JWT)', RFC 7519. Available at: https://tools.ietf.org/html/rfc7519
+//
+// Ristic, I. (2014) Bulletproof SSL and TLS: Understanding and Deploying SSL/TLS and PKI to Secure Servers and Web Applications. Feisty Duck.

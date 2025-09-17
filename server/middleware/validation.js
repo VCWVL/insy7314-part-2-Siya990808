@@ -240,7 +240,7 @@ const sensitiveOperationLimiter = require('express-rate-limit')({
   }
 });
 
-// IP Whitelisting middleware (for production)
+// IP Whitelisting middleware 
 const ipWhitelist = (req, res, next) => {
   const allowedIPs = process.env.ALLOWED_IPS ? process.env.ALLOWED_IPS.split(',') : [];
   
@@ -276,3 +276,18 @@ module.exports = {
   validateContentType,
   VALIDATION_PATTERNS
 };
+
+// References:
+// OWASP Foundation (2021) 'Input Validation Cheat Sheet', 
+// Available at: https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html (Accessed: 17 September 2025).
+//
+// Howard, M. and LeBlanc, D. (2003) Writing Secure Code. 2nd edn. Microsoft Press.
+//
+// Express Validator Documentation (2023) 'express-validator', 
+// Available at: https://express-validator.github.io/docs/ (Accessed: 17 September 2025).
+//
+// SANS Institute (2020) 'Input Validation: The First Line of Defense', 
+// SANS Reading Room. Available at: https://www.sans.org/reading-room/whitepapers/
+//
+// MDN Web Docs (2023) 'Regular Expressions', 
+// Available at: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions (Accessed: 17 September 2025).

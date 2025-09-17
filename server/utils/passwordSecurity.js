@@ -1,11 +1,11 @@
-// server/utils/passwordSecurity.js - EXCEEDS STANDARD Password Security
+// server/utils/passwordSecurity.js 
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 
 // ========== ADVANCED PASSWORD SECURITY CONFIGURATION ==========
 const PASSWORD_CONFIG = {
-  // High salt rounds for maximum security (exceeds standard)
+  // High salt rounds for maximum security
   SALT_ROUNDS: 14,
   
   // Password history to prevent reuse
@@ -27,7 +27,6 @@ const PASSWORD_CONFIG = {
 
 /**
  * Hash password with high-strength bcrypt and additional salt
- * EXCEEDS STANDARD: Uses salt rounds 14 + additional custom salt
  */
 const hashPassword = async (password) => {
   try {
@@ -74,8 +73,7 @@ const verifyPassword = async (password, storedHash, customSalt) => {
 };
 
 /**
- * Advanced password strength checker
- * EXCEEDS STANDARD: Comprehensive password analysis
+ * password strength checker
  */
 const analyzePasswordStrength = (password) => {
   const analysis = {
@@ -351,8 +349,8 @@ const generateResetToken = () => {
   const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
   
   return {
-    token: token, // Send this to user
-    hashedToken: hashedToken, // Store this in database
+    token: token, // Send to user
+    hashedToken: hashedToken, // Store in database
     expires: new Date(Date.now() + PASSWORD_CONFIG.RESET_TOKEN_EXPIRY)
   };
 };
@@ -390,8 +388,6 @@ const logSecurityEvent = (eventType, userId, details = {}) => {
   
   console.log('SECURITY EVENT:', JSON.stringify(logEntry));
   
-  // In production, you would send this to a security monitoring system
-  // such as SIEM, ELK stack, or security incident management platform
 };
 
 /**
@@ -499,3 +495,19 @@ module.exports = {
   // Configuration
   PASSWORD_CONFIG
 };
+
+// References:
+// NIST (2017) 'Digital Identity Guidelines: Authentication and Lifecycle Management', 
+// NIST Special Publication 800-63B. Available at: https://doi.org/10.6028/NIST.SP.800-63b
+//
+// Bonneau, J. et al. (2012) 'The quest to replace passwords: A framework for comparative evaluation of web authentication schemes', 
+// 2012 IEEE Symposium on Security and Privacy, pp. 553-567.
+//
+// OWASP Foundation (2021) 'Password Storage Cheat Sheet', 
+// Available at: https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html (Accessed: 17 September 2025).
+//
+// Bcrypt Documentation (2023) 'bcryptjs - A library to hash passwords', 
+// Available at: https://www.npmjs.com/package/bcryptjs (Accessed: 17 September 2025).
+//
+// Provos, N. and Mazières, D. (1999) 'A future-adaptable password scheme', 
+// Proceedings of the FREENIX Track: 1999 USENIX Annual Technical Conference, pp. 81-91.

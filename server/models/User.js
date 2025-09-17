@@ -1,4 +1,4 @@
-// server/models/User.js - EXCEEDS STANDARD User Model with Security
+// server/models/User.js 
 const mongoose = require('mongoose');
 
 // ========== PASSWORD HISTORY SCHEMA ==========
@@ -122,9 +122,7 @@ const UserSchema = new mongoose.Schema({
     validate: {
       validator: function(v) {
         if (!v) return true;
-        // IPv4 format
         const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-        // IPv6 format (including ::1 for localhost)
         const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
         return ipv4Regex.test(v) || ipv6Regex.test(v) || v === '::1';
       },
@@ -155,9 +153,7 @@ const UserSchema = new mongoose.Schema({
     validate: {
       validator: function(v) {
         if (!v) return true;
-        // IPv4 format
         const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-        // IPv6 format (including ::1 for localhost)
         const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
         return ipv4Regex.test(v) || ipv6Regex.test(v) || v === '::1';
       },
@@ -212,7 +208,7 @@ const UserSchema = new mongoose.Schema({
     default: Date.now
   }
 }, {
-  timestamps: true, // Automatically manage createdAt and updatedAt
+  timestamps: true, 
   collection: 'users'
 });
 
@@ -232,7 +228,6 @@ UserSchema.index({ lockoutUntil: 1 }, { sparse: true });
 UserSchema.index({ resetPasswordToken: 1 }, { sparse: true });
 UserSchema.index({ activeSession: 1 }, { sparse: true });
 
-// Compound indexes for login queries
 UserSchema.index({ username: 1, accountNumber: 1, isActive: 1 });
 
 // ========== VIRTUAL PROPERTIES ==========
@@ -285,7 +280,6 @@ UserSchema.virtual('securityScore').get(function() {
 
 // Pre-save middleware to update timestamps and validate data
 UserSchema.pre('save', function(next) {
-  // Update the updatedAt timestamp
   this.updatedAt = new Date();
   
   // Validate password history length
@@ -305,7 +299,6 @@ UserSchema.pre('save', function(next) {
 
 // Post-save middleware for logging
 UserSchema.post('save', function(doc) {
-  // Log significant changes (in production, send to security monitoring)
   if (this.isModified('passwordHash')) {
     console.log(`Password changed for user: ${doc.username} at ${new Date()}`);
   }
@@ -349,7 +342,7 @@ UserSchema.methods.getRecentSecurityEvents = function(days = 30) {
 
 // Method to check if user has suspicious activity
 UserSchema.methods.hasSuspiciousActivity = function() {
-  const recentEvents = this.getRecentSecurityEvents(7); // Last 7 days
+  const recentEvents = this.getRecentSecurityEvents(7); 
   const failedLogins = recentEvents.filter(event => event.eventType === 'FAILED_LOGIN');
   
   return {
@@ -425,3 +418,17 @@ UserSchema.statics.getSecurityStatistics = function() {
 const User = mongoose.model('User', UserSchema);
 
 module.exports = User;
+
+// References:
+// MongoDB Inc. (2023) 'MongoDB Security Architecture', 
+// Available at: https://www.mongodb.com/docs/manual/security/ (Accessed: 17 September 2025).
+//
+// Mongoose Documentation (2023) 'Mongoose ODM v7.5.0', 
+// Available at: https://mongoosejs.com/ (Accessed: 17 September 2025).
+//
+// OWASP Foundation (2021) 'Data Validation', 
+// Available at: https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html (Accessed: 17 September 2025).
+//
+// Chapple, M. and Stewart, J.M. (2021) CISSP Official Study Guide. 9th edn. Sybex.
+//
+// ISO/IEC 27001:2013 (2013) Information technology — Security techniques — Information security management systems — Requirements. Geneva: ISO.

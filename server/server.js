@@ -1,4 +1,4 @@
-// server/server.js - Maximum Security Implementation (patched)
+// server/server.js 
 // - Adds CSRF token endpoint (dev fallback)
 // - Corrects middleware ordering (cookie/session before csurf)
 // - Adds X-Requested-With to allowed CORS headers
@@ -79,21 +79,20 @@ const authLimiter = rateLimit({
   }
 });
 
-// Progressive delay for repeated requests (new-style delayMs to avoid warning)
+// Progressive delay for repeated requests 
 const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000,
   delayAfter: 2,
-  delayMs: () => 500 // constant 500ms delay for each request over the threshold
+  delayMs: () => 500 
 });
 
 app.use(limiter);
 app.use(speedLimiter);
 
 // 3. CORS CONFIGURATION (Secure Cross-Origin Requests)
-// Note: allowedHeaders includes X-Requested-With and x-csrf-token which the frontend uses
+// allowedHeaders includes X-Requested-With and x-csrf-token which the frontend uses
 const corsOptions = {
   origin: function(origin, callback) {
-    // Allow requests with no origin (like curl or mobile clients)
     if (!origin) return callback(null, true);
 
     const allowedOrigins = [
@@ -107,12 +106,10 @@ const corsOptions = {
       return callback(null, true);
     }
 
-    // Allow all for development convenience; tighten this in production.
     return callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  // Include common headers the frontend may send
   allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token', 'X-Requested-With'],
   exposedHeaders: ['x-csrf-token']
 };
@@ -123,31 +120,27 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 5. COOKIE PARSER (required before session and csurf)
+// 5. COOKIE PARSER 
 app.use(cookieParser());
 
 // 6. SESSION CONFIGURATION (Secure Session Management)
-// secure cookie only in production. sameSite adjusted in CSRF block below.
 app.use(session({
   secret: process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({
     mongoUrl: process.env.MONGODB_URI || 'mongodb://localhost:27017/banking_portal',
-    touchAfter: 24 * 3600 // lazy session update
+    touchAfter: 24 * 3600 
   }),
   cookie: {
     secure: process.env.NODE_ENV === 'production', // HTTPS only in production
     httpOnly: true, // Prevent XSS
-    maxAge: 1000 * 60 * 60 * 24, // 24 hours
-    // sameSite will be handled in CSRF block to allow cross-site cookies in production when needed
+    maxAge: 1000 * 60 * 60 * 24, 
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   }
 }));
 
 // 7. CSRF PROTECTION (enable cookie-based CSRF tokens)
-// CSRF must be registered AFTER cookieParser() and session()
-// Provide a development fallback token to simplify local testing.
 const csrfProtection = csrf({
   cookie: {
     httpOnly: true,
@@ -169,8 +162,6 @@ if (process.env.NODE_ENV === 'production') {
     }
   });
 } else {
-  // Development: do NOT enforce csurf (keeps dev workflow simple),
-  // but provide a token endpoint the frontend expects.
   app.get('/api/csrf-token', (req, res) => {
     res.json({ csrfToken: 'dev-token' });
   });
@@ -183,7 +174,7 @@ app.use(morgan('combined', {
   }
 }));
 
-// 9. FORCE HTTPS REDIRECT (disabled in dev; keep commented for now)
+// 9. FORCE HTTPS REDIRECT 
 // app.use((req, res, next) => {
 //   if (req.header('x-forwarded-proto') !== 'https') {
 //     res.redirect(`https://${req.header('host')}${req.url}`);
@@ -193,15 +184,11 @@ app.use(morgan('combined', {
 // });
 
 // ========== DATABASE CONNECTION ==========
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/banking_portal', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/banking_portal')
 .then(() => console.log('✅ MongoDB Connected with SSL'))
 .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
 // ========== ROUTES ==========
-// Mount auth route: use strict limiter in production, but relax in dev to avoid 429 while testing
 if (process.env.NODE_ENV === 'production') {
   app.use('/api/auth', authLimiter, require('./routes/auth'));
 } else {
@@ -243,7 +230,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler (must be last)
+// 404 handler 
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
@@ -252,13 +239,12 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 5000;
 const HTTPS_PORT = process.env.HTTPS_PORT || 5001;
 
-// Add HTTP server for development (useful to allow non-https dev)
 const httpServer = app.listen(PORT, () => {
-  console.log(`🌐 HTTP Server running on port ${PORT}`);
-  console.log(`🌍 Access at: http://localhost:${PORT}`);
+  console.log(` HTTP Server running on port ${PORT}`);
+  console.log(` Access at: http://localhost:${PORT}`);
 });
 
-// HTTPS Server with SSL certificates (self-signed for dev)
+// HTTPS Server with SSL certificates 
 try {
   const privateKey = fs.readFileSync(path.join(__dirname, '../certificates/private-key.pem'), 'utf8');
   const certificate = fs.readFileSync(path.join(__dirname, '../certificates/certificate.pem'), 'utf8');
@@ -267,20 +253,43 @@ try {
   const httpsServer = https.createServer(credentials, app);
 
   httpsServer.listen(HTTPS_PORT, () => {
-    console.log(`🔒 HTTPS Server running securely on port ${HTTPS_PORT}`);
-    console.log(`🌍 Access at: https://localhost:${HTTPS_PORT}`);
-    console.log(`🛡️  Security features active:`);
+    console.log(`HTTPS Server running securely on port ${HTTPS_PORT}`);
+    console.log(`Access at: https://localhost:${HTTPS_PORT}`);
+    console.log(`Security features active:`);
     console.log(`   ✅ SSL/TLS Encryption`);
     console.log(`   ✅ Rate Limiting & DDoS Protection`);
-    console.log(`   ✅ CSRF Protection (production)`); // note: dev uses token fallback
+    console.log(`   ✅ CSRF Protection (production)`); 
     console.log(`   ✅ XSS Protection`);
     console.log(`   ✅ Security Headers (Helmet.js)`);
     console.log(`   ✅ Session Security`);
     console.log(`   ✅ Input Validation`);
   });
 } catch (err) {
-  console.warn('⚠️  HTTPS certificates not found or unreadable. HTTPS server not started.', err.message || err);
+  console.warn('HTTPS certificates not found or unreadable. HTTPS server not started.', err.message || err);
   console.warn('If you want HTTPS locally, ensure certificates exist in /certificates and try again.');
 }
 
 module.exports = app;
+
+
+
+// References:
+// OWASP Foundation (2021) 'OWASP Top Ten Web Application Security Risks', 
+// Available at: https://owasp.org/Top10/ (Accessed: 17 September 2025).
+//
+// Stuttard, D. and Pinto, M. (2011) The Web Application Hacker's Handbook: Finding and Exploiting Security Flaws. 2nd edn. Indianapolis: Wiley.
+//
+// Express.js Foundation (2023) 'Express.js - Fast, unopinionated, minimalist web framework for Node.js', 
+// Available at: https://expressjs.com/ (Accessed: 17 September 2025).
+//
+// Helmetjs.github.io (2023) 'Helmet: Help secure Express apps with various HTTP headers', 
+// Available at: https://helmetjs.github.io/ (Accessed: 17 September 2025).
+//
+// NIST (2018) 'Framework for Improving Critical Infrastructure Cybersecurity', 
+// Version 1.1. Available at: https://doi.org/10.6028/NIST.CSWP.04162018
+//
+// Tilkov, S. and Vinoski, S. (2010) 'Node.js: Using JavaScript to build high-performance network programs', 
+// IEEE Internet Computing, 14(6), pp. 80-83.
+//
+// Mozilla Foundation (2023) 'HTTP Strict Transport Security (HSTS)', 
+// Available at: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security (Accessed: 17 September 2025).
