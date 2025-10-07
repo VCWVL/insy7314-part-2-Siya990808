@@ -1,14 +1,44 @@
-// server/routes/users.js
 const express = require('express');
 const router = express.Router();
+const User = require('../models/User');
+const csrf = require('csurf');
 
-// Placeholder for user routes
+const csrfProtection = csrf({ 
+  cookie: { 
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict'
+  } 
+});
+
+// Get user profile
+router.get('/profile', csrfProtection, async (req, res) => {
+  try {
+    const userId = req.session.user?._id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const user = await User.findById(userId)
+      .select('fullName username accountNumber registrationDate lastLoginDate');
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ user });
+  } catch (err) {
+    console.error('Profile fetch error:', err);
+    res.status(500).json({ error: 'Server error fetching profile' });
+  }
+});
+
+// Test route
 router.get('/test', (req, res) => {
   res.json({ message: 'Users route working' });
 });
 
 module.exports = router;
-
 // References:
 // GDPR.eu (2018) 'General Data Protection Regulation (GDPR)', 
 // Available at: https://gdpr.eu/ (Accessed: 17 September 2025).
