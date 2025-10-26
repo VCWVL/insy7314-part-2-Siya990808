@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import './App.css'; // Add this import
+import './App.css'; 
+
 
 // Pages & Components
 import Dashboard from './Components/Dashboard';
@@ -8,6 +9,8 @@ import PaymentForm from './pages/Payments/PaymentForm';
 import PaymentHistory from './pages/Payments/PaymentHistory';
 import LoginForm from './pages/Auth/LoginForm';
 import RegistrationForm from './pages/Auth/RegistrationForm';
+import EmployeeLogin from './pages/Employee/EmployeeLogin';
+import EmployeeDashboard from './pages/Employee/EmployeeDashboard';
 
 // Security Context
 import { SecurityProvider, useAuth } from './contexts/SecurityContext';
@@ -57,6 +60,8 @@ const App = () => {
               }
             />
             <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/employee/login" element={<EmployeeLogin />} />
+            <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
           </Routes>
         </SecurityProvider>
       </Router>

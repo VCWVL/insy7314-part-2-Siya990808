@@ -62,18 +62,17 @@ const authLimiter = rateLimit({
   }
 });
 
-// FIXED: Slow down configuration
 const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000,
   delayAfter: 5,
   delayMs: () => 500,
-  validate: { delayMs: false } // Add this to fix the warning
+  validate: { delayMs: false } 
 });
 
 // 3. CORS CONFIGURATION
 const corsOptions = {
   origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
+    // Allow requests with no origin 
     if (!origin) return callback(null, true);
     
     const allowedOrigins = [
@@ -90,8 +89,8 @@ const corsOptions = {
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token', 'X-Requested-With'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'], 
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token', 'X-CSRF-Token', 'X-Requested-With'],
 };
 
 app.use(cors(corsOptions));
@@ -109,13 +108,13 @@ app.use(session({
   saveUninitialized: false,
   store: MongoStore.create({
     mongoUrl: process.env.MONGODB_URI || 'mongodb+srv://bankinguser:bankingpassword@banking-cluster.aacnujn.mongodb.net/banking_app?retryWrites=true&w=majority&appName=banking-cluster',
-    ttl: 24 * 60 * 60 // 1 day
+    ttl: 24 * 60 * 60 
   }),
   cookie: {
-    secure: false, // Set to false for development (HTTP)
+    secure: false, 
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: 'lax' // Changed to lax for development
+    maxAge: 24 * 60 * 60 * 1000, 
+    sameSite: 'lax' 
   }
 }));
 
@@ -123,7 +122,7 @@ app.use(session({
 const csrfProtection = csrf({
   cookie: {
     httpOnly: true,
-    secure: false, // Set to false for development
+    secure: false, 
     sameSite: 'lax'
   }
 });
@@ -141,7 +140,6 @@ app.use(limiter);
 app.use(speedLimiter);
 
 // ========== DATABASE CONNECTION ==========
-// FIXED: Remove deprecated options
 mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://bankinguser:bankingpassword@banking-cluster.aacnujn.mongodb.net/banking_app?retryWrites=true&w=majority&appName=banking-cluster')
 .then(() => console.log('✅ MongoDB Connected'))
 .catch(err => console.error('❌ MongoDB Connection Error:', err));
@@ -154,8 +152,10 @@ const userRoutes = require('./routes/users');
 
 // Apply routes with appropriate rate limiting
 app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/transactions', csrfProtection, transactionRoutes); // Apply CSRF only to transactions
+app.use('/api/transactions', csrfProtection, transactionRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/employee/auth', authLimiter, require('./routes/employeeAuth'));
+app.use('/api/employee/transactions', require('./routes/employeeTransactions'));
 
 // Health check endpoint (no rate limiting)
 app.get('/health', (req, res) => {
