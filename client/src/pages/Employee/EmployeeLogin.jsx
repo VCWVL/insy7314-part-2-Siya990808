@@ -1,7 +1,6 @@
-// client/src/pages/Employee/EmployeeLogin.jsx
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import { useAuth } from '../../contexts/SecurityContext';
 
 const EmployeeLogin = () => {
   const [formData, setFormData] = useState({
@@ -11,6 +10,7 @@ const EmployeeLogin = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { employeeLogin } = useAuth();
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -33,19 +33,17 @@ const EmployeeLogin = () => {
     setError('');
 
     try {
-      const response = await axios.post(
-        'http://localhost:5000/api/employee/auth/login',
-        formData,
-        { withCredentials: true }
-      );
-
-      if (response.data.employee) {
-        sessionStorage.setItem('employee', JSON.stringify(response.data.employee));
+      const result = await employeeLogin(formData.username, formData.password);
+      
+      if (result.success) {
         navigate('/employee/dashboard');
+      } else {
+        setError(result.message);
+        setFormData(prev => ({ ...prev, password: '' }));
       }
     } catch (err) {
-      console.error('Employee login error:', err);
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      console.error('Login error:', err);
+      setError('Login failed. Please try again.');
       setFormData(prev => ({ ...prev, password: '' }));
     } finally {
       setLoading(false);
@@ -78,12 +76,13 @@ const EmployeeLogin = () => {
         {error && (
           <div style={{
             padding: '12px',
-            background: '#fee',
-            border: '1px solid #fcc',
+            background: error.includes('LAST ATTEMPT') ? '#fff3cd' : '#fee',
+            border: error.includes('LAST ATTEMPT') ? '1px solid #ffc107' : '1px solid #fcc',
             borderRadius: '5px',
-            color: '#c33',
+            color: error.includes('LAST ATTEMPT') ? '#856404' : '#c33',
             marginBottom: '20px',
-            fontSize: '14px'
+            fontSize: '14px',
+            fontWeight: error.includes('LAST ATTEMPT') ? 'bold' : 'normal'
           }}>
             {error}
           </div>
@@ -92,14 +91,14 @@ const EmployeeLogin = () => {
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', marginBottom: '8px', color: '#2c3e50', fontWeight: '500' }}>
-              Employee Username *
+              Username *
             </label>
             <input
               type="text"
               name="username"
               value={formData.username}
               onChange={handleInputChange}
-              placeholder="Enter your username"
+              placeholder="Enter username"
               required
               disabled={loading}
               style={{
@@ -107,8 +106,7 @@ const EmployeeLogin = () => {
                 padding: '12px',
                 border: '1px solid #ddd',
                 borderRadius: '5px',
-                fontSize: '16px',
-                boxSizing: 'border-box'
+                fontSize: '16px'
               }}
             />
           </div>
@@ -122,7 +120,7 @@ const EmployeeLogin = () => {
               name="password"
               value={formData.password}
               onChange={handleInputChange}
-              placeholder="Enter your password"
+              placeholder="Enter password"
               required
               disabled={loading}
               style={{
@@ -130,8 +128,7 @@ const EmployeeLogin = () => {
                 padding: '12px',
                 border: '1px solid #ddd',
                 borderRadius: '5px',
-                fontSize: '16px',
-                boxSizing: 'border-box'
+                fontSize: '16px'
               }}
             />
           </div>
@@ -147,37 +144,15 @@ const EmployeeLogin = () => {
               border: 'none',
               borderRadius: '5px',
               fontSize: '16px',
-              fontWeight: 'bold',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'background 0.3s'
+              cursor: loading ? 'not-allowed' : 'pointer'
             }}
           >
             {loading ? 'Logging in...' : 'Employee Login'}
           </button>
         </form>
 
-        <div style={{
-          marginTop: '20px',
-          padding: '15px',
-          background: '#fff3cd',
-          borderRadius: '8px',
-          border: '1px solid #ffc107'
-        }}>
-          <p style={{ margin: 0, fontSize: '14px', color: '#856404' }}>
-            <strong>Employee Access Only</strong><br />
-            This portal is restricted to authorized bank staff.
-          </p>
-        </div>
-
         <div style={{ textAlign: 'center', marginTop: '20px' }}>
-          <Link 
-            to="/login" 
-            style={{ 
-              color: '#3498db', 
-              textDecoration: 'none', 
-              fontSize: '14px' 
-            }}
-          >
+          <Link to="/login" style={{ color: '#3498db', textDecoration: 'none' }}>
             ← Back to Customer Login
           </Link>
         </div>

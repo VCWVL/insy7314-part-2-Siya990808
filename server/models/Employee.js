@@ -1,6 +1,6 @@
-// server/models/Employee.js
 const mongoose = require('mongoose');
 
+// Employee Schema
 const EmployeeSchema = new mongoose.Schema({
   employeeId: {
     type: String,
@@ -41,6 +41,16 @@ const EmployeeSchema = new mongoose.Schema({
     default: true
   },
   lastLoginDate: Date,
+
+  // --- Login attempt tracking fields ---
+  loginAttempts: { 
+    type: Number, 
+    default: 0 // Tracks consecutive failed login attempts
+  },
+  lockUntil: { 
+    type: Date // Timestamp until account is locked
+  },
+
   createdAt: {
     type: Date,
     default: Date.now

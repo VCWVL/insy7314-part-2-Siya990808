@@ -1,55 +1,64 @@
-// server/routes/employeeAuth.js
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const csrf = require('csurf');
 const router = express.Router();
 const Employee = require('../models/Employee');
 
-// CSRF protection 
-const csrfProtection = csrf({
-  cookie: {
-    httpOnly: true,
-    secure: false, 
-    sameSite: 'lax'
-  }
-});
-
+// --- Employee Login ---
 router.post('/login', async (req, res) => {
   try {
-    console.log('Employee login attempt:', { username: req.body.username });
-
+    console.log('🔐 Employee login attempt:', req.body.username);
+    
     const { username, password } = req.body;
 
     if (!username || !password) {
       return res.status(400).json({ message: 'Username and password are required' });
     }
 
-    // Find employee by username
     const employee = await Employee.findOne({ 
-      username: username.trim(),
-      isActive: true // Only active employees can login
+      username: username.trim(), 
+      isActive: true 
     });
-    
+
     if (!employee) {
-      console.log('Employee not found or inactive:', username);
-      return res.status(401).json({ message: 'Invalid credentials' });
+      console.log('❌ Employee not found:', username);
+      return res.status(401).json({ message: 'Invalid credentials.' });
     }
 
-    // Check password
+    // Check if account is locked
+    if (employee.lockUntil && employee.lockUntil > Date.now()) {
+      const lockTimeLeft = Math.ceil((employee.lockUntil - Date.now()) / (1000 * 60));
+      return res.status(403).json({ 
+        message: `Account locked. Try again in ${lockTimeLeft} minutes.` 
+      });
+    }
+
     const isValidPassword = await bcrypt.compare(password, employee.passwordHash);
+
     if (!isValidPassword) {
-      console.log('Invalid password for employee:', username);
-      return res.status(401).json({ message: 'Invalid credentials' });
+      employee.loginAttempts += 1;
+      let message = 'Invalid credentials.';
+
+      // Warn on 5th attempt
+      if (employee.loginAttempts === 5) {
+        message = 'LAST ATTEMPT! YOU WILL BE LOCKED OUT AFTER THIS.';
+      }
+
+      // Lock on 6th attempt
+      if (employee.loginAttempts >= 6) {
+        employee.lockUntil = Date.now() + (30 * 60 * 1000); // 30 minutes
+        message = 'Account locked due to failed attempts. Try again in 30 minutes.';
+      }
+
+      await employee.save();
+      return res.status(401).json({ message });
     }
 
-    // Successful login
-    console.log('Employee login successful:', username);
-    
-    // Update last login
+    // SUCCESSFUL LOGIN
+    employee.loginAttempts = 0;
+    employee.lockUntil = undefined;
     employee.lastLoginDate = new Date();
     await employee.save();
 
-    // Set employee session (different from customer session)
     req.session.employee = {
       _id: employee._id,
       employeeId: employee.employeeId,
@@ -59,42 +68,37 @@ router.post('/login', async (req, res) => {
       department: employee.department
     };
 
-    res.json({
-      message: 'Employee login successful',
-      employee: req.session.employee
+    console.log('✅ Login successful for:', username);
+    res.json({ 
+      message: 'Login successful', 
+      employee: req.session.employee 
     });
 
   } catch (error) {
-    console.error('Employee login error:', error);
+    console.error('❌ Login error:', error);
     res.status(500).json({ message: 'Server error during login' });
   }
 });
 
-// Employee Logout - NO CSRF needed
+// --- Employee Logout ---
 router.post('/logout', (req, res) => {
-  req.session.destroy((err) => {
+  req.session.destroy(err => {
     if (err) {
-      console.error('Employee logout error:', err);
+      console.error('Logout error:', err);
       return res.status(500).json({ message: 'Logout failed' });
     }
     res.clearCookie('connect.sid');
-    res.json({ message: 'Employee logout successful' });
+    res.json({ message: 'Logout successful' });
   });
 });
 
-// Employee Session Check - NO CSRF needed 
+// --- Session Check ---
 router.get('/session', (req, res) => {
   if (req.session.employee) {
     res.json({ authenticated: true, employee: req.session.employee });
   } else {
     res.status(401).json({ authenticated: false, message: 'Not authenticated' });
   }
-});
-
-// Get CSRF token for employee portal - WITH CSRF protection
-router.get('/csrf-token', csrfProtection, (req, res) => {
-  console.log('🔑 CSRF token requested by employee');
-  res.json({ csrfToken: req.csrfToken() });
 });
 
 module.exports = router;

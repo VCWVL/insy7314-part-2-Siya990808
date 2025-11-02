@@ -1,10 +1,8 @@
-// client/src/pages/Employee/EmployeeDashboard.jsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/SecurityContext';
 import axios from 'axios';
 
 const EmployeeDashboard = () => {
-  const [employee, setEmployee] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,50 +11,95 @@ const EmployeeDashboard = () => {
   const [selectedTransactions, setSelectedTransactions] = useState([]);
   const [stats, setStats] = useState({ pending: 0, verified: 0, submitted: 0 });
   const [csrfToken, setCsrfToken] = useState('');
-  const navigate = useNavigate();
+  
+  // Search & Pagination State
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
+  const { employeeUser, employeeLogout, resetInactivityTimer } = useAuth();
 
   useEffect(() => {
-    const employeeData = sessionStorage.getItem('employee');
-    if (!employeeData) {
-      navigate('/employee/login');
+    if (!employeeUser) {
       return;
     }
-    setEmployee(JSON.parse(employeeData));
     
-    // Initialize everything
+    console.log('🔄 Initializing employee dashboard for:', employeeUser.fullName);
     const init = async () => {
-      console.log('Initializing employee dashboard...');
       await fetchCsrfToken();
       await fetchTransactions();
       await fetchStats();
-      console.log('Dashboard initialized');
+      console.log('✅ Dashboard initialized');
     };
     
     init();
-  }, [navigate]);
+  }, [employeeUser]);
 
+  // Apply filters and search
   useEffect(() => {
-    if (filterStatus === 'all') {
-      setFilteredTransactions(transactions);
-    } else {
-      setFilteredTransactions(transactions.filter(tx => tx.status === filterStatus));
+    let filtered = transactions;
+
+    // Apply status filter
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(tx => tx.status === filterStatus);
     }
-  }, [filterStatus, transactions]);
+
+    // Apply search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(tx => 
+        tx.userId?.fullName?.toLowerCase().includes(searchLower) ||
+        tx.userId?.username?.toLowerCase().includes(searchLower) ||
+        tx.beneficiaryAccount?.toLowerCase().includes(searchLower) ||
+        tx.swiftCode?.toLowerCase().includes(searchLower) ||
+        tx.provider?.toLowerCase().includes(searchLower) ||
+        tx.currency?.toLowerCase().includes(searchLower) ||
+        tx.amount?.toString().includes(searchTerm) ||
+        tx._id?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    setFilteredTransactions(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
+  }, [filterStatus, searchTerm, transactions]);
+
+  // Reset inactivity timer on any user activity
+  useEffect(() => {
+    const handleActivity = () => {
+      resetInactivityTimer();
+    };
+
+    const events = ['mousedown', 'keypress', 'scroll', 'touchstart', 'mousemove'];
+    events.forEach(event => {
+      document.addEventListener(event, handleActivity);
+    });
+
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, handleActivity);
+      });
+    };
+  }, [resetInactivityTimer]);
+
+  // Pagination calculations
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentTransactions = filteredTransactions.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
 
   const fetchCsrfToken = async () => {
     try {
-      console.log('Fetching CSRF token...');
+      console.log('🔐 Fetching CSRF token...');
       const response = await axios.get(
-        'http://localhost:5000/api/employee/auth/csrf-token',
+        'http://localhost:5000/api/employeeauth/csrf-token',
         { withCredentials: true }
       );
       const token = response.data.csrfToken;
       setCsrfToken(token);
-      console.log('✅ CSRF token received:', token);
+      console.log('✅ CSRF token received');
       return token;
     } catch (err) {
       console.error('❌ CSRF token fetch error:', err);
-      console.error('Error details:', err.response?.data);
       setError('Failed to fetch security token. Please refresh the page.');
       return null;
     }
@@ -70,11 +113,11 @@ const EmployeeDashboard = () => {
         { withCredentials: true }
       );
       setTransactions(response.data);
+      setError('');
     } catch (err) {
-      console.error('Fetch transactions error:', err);
+      console.error('❌ Fetch transactions error:', err);
       if (err.response?.status === 401) {
-        sessionStorage.removeItem('employee');
-        navigate('/employee/login');
+        setError('Session expired. Please login again.');
       } else {
         setError('Failed to load transactions');
       }
@@ -91,15 +134,16 @@ const EmployeeDashboard = () => {
       );
       setStats(response.data);
     } catch (err) {
-      console.error('Fetch stats error:', err);
+      console.error('❌ Fetch stats error:', err);
     }
   };
 
   const handleVerify = async (transactionId) => {
     try {
+      resetInactivityTimer();
+      
       let token = csrfToken;
       if (!token) {
-        console.log('⚠️ No CSRF token found, fetching...');
         token = await fetchCsrfToken();
         if (!token) {
           alert('Failed to get security token. Please refresh the page.');
@@ -107,7 +151,7 @@ const EmployeeDashboard = () => {
         }
       }
 
-      console.log('Verifying transaction with CSRF token');
+      console.log('✅ Verifying transaction:', transactionId);
       
       await axios.patch(
         `http://localhost:5000/api/employee/transactions/${transactionId}/verify`,
@@ -120,21 +164,15 @@ const EmployeeDashboard = () => {
         }
       );
       
-      console.log('✅ Transaction verified successfully');
       alert('Transaction verified successfully!');
       
-      // Refresh token and data
       await fetchCsrfToken();
       await fetchTransactions();
       await fetchStats();
       
     } catch (err) {
       console.error('❌ Verify error:', err);
-      console.error('Response:', err.response?.data);
-      console.error('Status:', err.response?.status);
-      
       if (err.response?.status === 403) {
-        console.log('CSRF token invalid or expired');
         await fetchCsrfToken();
         alert('Security token expired. Please try again.');
       } else {
@@ -149,9 +187,10 @@ const EmployeeDashboard = () => {
     }
 
     try {
+      resetInactivityTimer();
+      
       let token = csrfToken;
       if (!token) {
-        console.log('⚠️ No CSRF token found, fetching...');
         token = await fetchCsrfToken();
         if (!token) {
           alert('Failed to get security token. Please refresh the page.');
@@ -159,7 +198,7 @@ const EmployeeDashboard = () => {
         }
       }
 
-      console.log('Submitting transaction to SWIFT with CSRF token');
+      console.log('🚀 Submitting transaction to SWIFT:', transactionId);
 
       await axios.patch(
         `http://localhost:5000/api/employee/transactions/${transactionId}/submit`,
@@ -172,20 +211,15 @@ const EmployeeDashboard = () => {
         }
       );
       
-      console.log('✅ Transaction submitted to SWIFT');
       alert('Transaction submitted to SWIFT successfully!');
       
-      // Refresh token and data
       await fetchCsrfToken();
       await fetchTransactions();
       await fetchStats();
       
     } catch (err) {
       console.error('❌ Submit error:', err);
-      console.error('Response:', err.response?.data);
-      
       if (err.response?.status === 403) {
-        console.log('CSRF token invalid or expired');
         await fetchCsrfToken();
         alert('Security token expired. Please try again.');
       } else {
@@ -205,9 +239,10 @@ const EmployeeDashboard = () => {
     }
 
     try {
+      resetInactivityTimer();
+      
       let token = csrfToken;
       if (!token) {
-        console.log('⚠️ No CSRF token found, fetching...');
         token = await fetchCsrfToken();
         if (!token) {
           alert('Failed to get security token. Please refresh the page.');
@@ -215,7 +250,7 @@ const EmployeeDashboard = () => {
         }
       }
 
-      console.log('Bulk submitting transactions with CSRF token');
+      console.log('🚀 Bulk submitting transactions:', selectedTransactions.length);
 
       await axios.post(
         'http://localhost:5000/api/employee/transactions/submit-bulk',
@@ -228,21 +263,16 @@ const EmployeeDashboard = () => {
         }
       );
       
-      console.log('✅ Bulk submit successful');
       alert(`${selectedTransactions.length} transactions submitted successfully!`);
       setSelectedTransactions([]);
       
-      // Refresh token and data
       await fetchCsrfToken();
       await fetchTransactions();
       await fetchStats();
       
     } catch (err) {
       console.error('❌ Bulk submit error:', err);
-      console.error('Response:', err.response?.data);
-      
       if (err.response?.status === 403) {
-        console.log('CSRF token invalid or expired');
         await fetchCsrfToken();
         alert('Security token expired. Please try again.');
       } else {
@@ -252,6 +282,7 @@ const EmployeeDashboard = () => {
   };
 
   const handleSelectTransaction = (txId) => {
+    resetInactivityTimer();
     setSelectedTransactions(prev => {
       if (prev.includes(txId)) {
         return prev.filter(id => id !== txId);
@@ -261,20 +292,35 @@ const EmployeeDashboard = () => {
     });
   };
 
-  const handleLogout = async () => {
-    try {
-      await axios.post(
-        'http://localhost:5000/api/employee/auth/logout',
-        {},
-        { withCredentials: true }
-      );
-    } catch (err) {
-      console.error('Logout error:', err);
-    } finally {
-      sessionStorage.removeItem('employee');
-      navigate('/employee/login');
+  const handleSelectAll = () => {
+    resetInactivityTimer();
+    if (selectedTransactions.length === currentTransactions.length) {
+      setSelectedTransactions([]);
+    } else {
+      const allIds = currentTransactions.map(tx => tx._id);
+      setSelectedTransactions(allIds);
     }
   };
+
+  // Pagination functions
+  const goToPage = (pageNumber) => {
+    resetInactivityTimer();
+    setCurrentPage(pageNumber);
+  };
+
+  const handleItemsPerPageChange = (e) => {
+    resetInactivityTimer();
+    setItemsPerPage(Number(e.target.value));
+    setCurrentPage(1);
+  };
+
+  if (!employeeUser) {
+    return (
+      <div style={{ padding: '50px', textAlign: 'center' }}>
+        <div style={{ fontSize: '18px', color: '#e74c3c' }}>Please login to access the dashboard</div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -298,11 +344,12 @@ const EmployeeDashboard = () => {
         <div>
           <h1 style={{ margin: 0 }}>Employee Portal</h1>
           <p style={{ margin: '5px 0 0 0', color: '#7f8c8d' }}>
-            Welcome back, {employee?.fullName} ({employee?.department})
+            Welcome back, {employeeUser.fullName} ({employeeUser.department})
           </p>
+        
         </div>
         <button 
-          onClick={handleLogout}
+          onClick={employeeLogout}
           style={{
             padding: '10px 20px',
             background: '#e74c3c',
@@ -361,95 +408,138 @@ const EmployeeDashboard = () => {
         </div>
       </div>
 
-      {/* Filter Controls */}
+      {/* Search and Filter Controls */}
       <div style={{ 
         display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
+        flexDirection: 'column',
+        gap: '15px',
         marginBottom: '20px',
-        flexWrap: 'wrap',
-        gap: '10px',
         background: 'white',
-        padding: '15px',
+        padding: '20px',
         borderRadius: '10px'
       }}>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <button 
-            onClick={() => setFilterStatus('pending')}
-            style={{
-              padding: '10px 20px',
-              background: filterStatus === 'pending' ? '#ffc107' : '#f8f9fa',
-              border: '2px solid #ffc107',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              fontWeight: filterStatus === 'pending' ? 'bold' : 'normal'
-            }}
-          >
-            Pending ({stats.pending || 0})
-          </button>
-
-          <button 
-            onClick={() => setFilterStatus('verified')}
-            style={{
-              padding: '10px 20px',
-              background: filterStatus === 'verified' ? '#17a2b8' : '#f8f9fa',
-              border: '2px solid #17a2b8',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              color: filterStatus === 'verified' ? '#fff' : '#000',
-              fontWeight: filterStatus === 'verified' ? 'bold' : 'normal'
-            }}
-          >
-            Verified ({stats.verified || 0})
-          </button>
-
-          <button 
-            onClick={() => setFilterStatus('submitted')}
-            style={{
-              padding: '10px 20px',
-              background: filterStatus === 'submitted' ? '#28a745' : '#f8f9fa',
-              border: '2px solid #28a745',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              color: filterStatus === 'submitted' ? '#fff' : '#000',
-              fontWeight: filterStatus === 'submitted' ? 'bold' : 'normal'
-            }}
-          >
-            Submitted ({stats.submitted || 0})
-          </button>
-
-          <button 
-            onClick={() => setFilterStatus('all')}
-            style={{
-              padding: '10px 20px',
-              background: filterStatus === 'all' ? '#6c757d' : '#f8f9fa',
-              border: '2px solid #6c757d',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              color: filterStatus === 'all' ? '#fff' : '#000',
-              fontWeight: filterStatus === 'all' ? 'bold' : 'normal'
-            }}
-          >
-            All
-          </button>
+        {/* Search Bar */}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <div style={{ flex: 1 }}>
+            <input
+              type="text"
+              placeholder="Search transactions by customer, beneficiary, SWIFT code, amount..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px 15px',
+                border: '2px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '16px',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              style={{
+                padding: '12px 20px',
+                background: '#95a5a6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              Clear
+            </button>
+          )}
         </div>
 
-        {selectedTransactions.length > 0 && filterStatus === 'verified' && (
-          <button 
-            onClick={handleBulkSubmit}
-            style={{
-              padding: '10px 20px',
-              background: '#28a745',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              fontWeight: 'bold'
-            }}
-          >
-            Submit {selectedTransactions.length} to SWIFT
-          </button>
-        )}
+        {/* Status Filters and Bulk Actions */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '10px'
+        }}>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <button 
+              onClick={() => { setFilterStatus('pending'); resetInactivityTimer(); }}
+              style={{
+                padding: '10px 20px',
+                background: filterStatus === 'pending' ? '#ffc107' : '#f8f9fa',
+                border: '2px solid #ffc107',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontWeight: filterStatus === 'pending' ? 'bold' : 'normal'
+              }}
+            >
+              Pending ({stats.pending || 0})
+            </button>
+
+            <button 
+              onClick={() => { setFilterStatus('verified'); resetInactivityTimer(); }}
+              style={{
+                padding: '10px 20px',
+                background: filterStatus === 'verified' ? '#17a2b8' : '#f8f9fa',
+                border: '2px solid #17a2b8',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                color: filterStatus === 'verified' ? '#fff' : '#000',
+                fontWeight: filterStatus === 'verified' ? 'bold' : 'normal'
+              }}
+            >
+              Verified ({stats.verified || 0})
+            </button>
+
+            <button 
+              onClick={() => { setFilterStatus('submitted'); resetInactivityTimer(); }}
+              style={{
+                padding: '10px 20px',
+                background: filterStatus === 'submitted' ? '#28a745' : '#f8f9fa',
+                border: '2px solid #28a745',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                color: filterStatus === 'submitted' ? '#fff' : '#000',
+                fontWeight: filterStatus === 'submitted' ? 'bold' : 'normal'
+              }}
+            >
+              Submitted ({stats.submitted || 0})
+            </button>
+
+            <button 
+              onClick={() => { setFilterStatus('all'); resetInactivityTimer(); }}
+              style={{
+                padding: '10px 20px',
+                background: filterStatus === 'all' ? '#6c757d' : '#f8f9fa',
+                border: '2px solid #6c757d',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                color: filterStatus === 'all' ? '#fff' : '#000',
+                fontWeight: filterStatus === 'all' ? 'bold' : 'normal'
+              }}
+            >
+              All ({transactions.length})
+            </button>
+          </div>
+
+          {selectedTransactions.length > 0 && filterStatus === 'verified' && (
+            <button 
+              onClick={handleBulkSubmit}
+              style={{
+                padding: '10px 20px',
+                background: '#28a745',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              Submit {selectedTransactions.length} to SWIFT
+            </button>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -465,6 +555,133 @@ const EmployeeDashboard = () => {
         </div>
       )}
 
+      {/* Pagination Controls - Top */}
+      {filteredTransactions.length > 0 && (
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          marginBottom: '15px',
+          background: 'white',
+          padding: '15px',
+          borderRadius: '10px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <span style={{ fontWeight: 'bold', color: '#2c3e50' }}>
+              Showing {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredTransactions.length)} of {filteredTransactions.length} transactions
+            </span>
+            
+            <select 
+              value={itemsPerPage} 
+              onChange={handleItemsPerPageChange}
+              style={{
+                padding: '8px 12px',
+                border: '1px solid #ddd',
+                borderRadius: '5px',
+                background: 'white'
+              }}
+            >
+              <option value={5}>5 per page</option>
+              <option value={10}>10 per page</option>
+              <option value={20}>20 per page</option>
+              <option value={50}>50 per page</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', gap: '5px' }}>
+            <button 
+              onClick={() => goToPage(1)} 
+              disabled={currentPage === 1}
+              style={{
+                padding: '8px 12px',
+                background: currentPage === 1 ? '#95a5a6' : '#3498db',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              First
+            </button>
+            <button 
+              onClick={() => goToPage(currentPage - 1)} 
+              disabled={currentPage === 1}
+              style={{
+                padding: '8px 12px',
+                background: currentPage === 1 ? '#95a5a6' : '#3498db',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Previous
+            </button>
+            
+            {/* Page Numbers */}
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNumber;
+              if (totalPages <= 5) {
+                pageNumber = i + 1;
+              } else if (currentPage <= 3) {
+                pageNumber = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNumber = totalPages - 4 + i;
+              } else {
+                pageNumber = currentPage - 2 + i;
+              }
+
+              return (
+                <button
+                  key={pageNumber}
+                  onClick={() => goToPage(pageNumber)}
+                  style={{
+                    padding: '8px 12px',
+                    background: currentPage === pageNumber ? '#2c3e50' : '#3498db',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    fontWeight: currentPage === pageNumber ? 'bold' : 'normal'
+                  }}
+                >
+                  {pageNumber}
+                </button>
+              );
+            })}
+
+            <button 
+              onClick={() => goToPage(currentPage + 1)} 
+              disabled={currentPage === totalPages}
+              style={{
+                padding: '8px 12px',
+                background: currentPage === totalPages ? '#95a5a6' : '#3498db',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Next
+            </button>
+            <button 
+              onClick={() => goToPage(totalPages)} 
+              disabled={currentPage === totalPages}
+              style={{
+                padding: '8px 12px',
+                background: currentPage === totalPages ? '#95a5a6' : '#3498db',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Last
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Transactions Table */}
       {filteredTransactions.length === 0 ? (
         <div style={{ 
@@ -474,6 +691,7 @@ const EmployeeDashboard = () => {
           borderRadius: '10px' 
         }}>
           <h3>No {filterStatus !== 'all' ? filterStatus : ''} transactions found</h3>
+          {searchTerm && <p>Try adjusting your search terms</p>}
         </div>
       ) : (
         <div style={{ background: 'white', borderRadius: '10px', overflow: 'hidden' }}>
@@ -485,7 +703,16 @@ const EmployeeDashboard = () => {
             }}>
               <thead>
                 <tr style={{ background: '#3498db', color: 'white' }}>
-                  {filterStatus === 'verified' && <th style={{ padding: '15px', textAlign: 'left' }}>Select</th>}
+                  {filterStatus === 'verified' && (
+                    <th style={{ padding: '15px', textAlign: 'left', width: '50px' }}>
+                      <input 
+                        type="checkbox"
+                        checked={selectedTransactions.length === currentTransactions.length && currentTransactions.length > 0}
+                        onChange={handleSelectAll}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                      />
+                    </th>
+                  )}
                   <th style={{ padding: '15px', textAlign: 'left' }}>Date</th>
                   <th style={{ padding: '15px', textAlign: 'left' }}>Customer</th>
                   <th style={{ padding: '15px', textAlign: 'right' }}>Amount</th>
@@ -498,7 +725,7 @@ const EmployeeDashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredTransactions.map((tx, index) => (
+                {currentTransactions.map((tx, index) => (
                   <tr key={tx._id} style={{ 
                     borderBottom: '1px solid #eee',
                     background: index % 2 === 0 ? 'white' : '#f9f9f9'
@@ -524,7 +751,7 @@ const EmployeeDashboard = () => {
                     </td>
                     <td style={{ padding: '15px', textAlign: 'right' }}>
                       <strong style={{ color: '#27ae60', fontSize: '16px' }}>
-                        {tx.amount.toFixed(2)}
+                        {tx.amount?.toFixed(2) || '0.00'}
                       </strong>
                     </td>
                     <td style={{ padding: '15px', textAlign: 'center' }}>
@@ -617,18 +844,114 @@ const EmployeeDashboard = () => {
         </div>
       )}
 
-      <div style={{ 
-        marginTop: '30px', 
-        padding: '20px', 
-        background: 'white', 
-        borderRadius: '10px',
-        textAlign: 'center'
-      }}>
-        <p style={{ margin: 0, color: '#7f8c8d' }}>
-          <strong>Showing:</strong> {filteredTransactions.length} transactions • 
-          <strong> Total:</strong> {transactions.length}
-        </p>
-      </div>
+      {/* Pagination Controls - Bottom */}
+      {filteredTransactions.length > 0 && (
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          marginTop: '20px',
+          background: 'white',
+          padding: '15px',
+          borderRadius: '10px'
+        }}>
+          <span style={{ color: '#7f8c8d' }}>
+            Page {currentPage} of {totalPages} • {filteredTransactions.length} transactions found
+          </span>
+          
+          <div style={{ display: 'flex', gap: '5px' }}>
+            <button 
+              onClick={() => goToPage(1)} 
+              disabled={currentPage === 1}
+              style={{
+                padding: '8px 12px',
+                background: currentPage === 1 ? '#95a5a6' : '#3498db',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              First
+            </button>
+            <button 
+              onClick={() => goToPage(currentPage - 1)} 
+              disabled={currentPage === 1}
+              style={{
+                padding: '8px 12px',
+                background: currentPage === 1 ? '#95a5a6' : '#3498db',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Previous
+            </button>
+            
+            {/* Show limited page numbers */}
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNumber;
+              if (totalPages <= 5) {
+                pageNumber = i + 1;
+              } else if (currentPage <= 3) {
+                pageNumber = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNumber = totalPages - 4 + i;
+              } else {
+                pageNumber = currentPage - 2 + i;
+              }
+
+              return (
+                <button
+                  key={pageNumber}
+                  onClick={() => goToPage(pageNumber)}
+                  style={{
+                    padding: '8px 12px',
+                    background: currentPage === pageNumber ? '#2c3e50' : '#3498db',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    fontWeight: currentPage === pageNumber ? 'bold' : 'normal'
+                  }}
+                >
+                  {pageNumber}
+                </button>
+              );
+            })}
+
+            <button 
+              onClick={() => goToPage(currentPage + 1)} 
+              disabled={currentPage === totalPages}
+              style={{
+                padding: '8px 12px',
+                background: currentPage === totalPages ? '#95a5a6' : '#3498db',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Next
+            </button>
+            <button 
+              onClick={() => goToPage(totalPages)} 
+              disabled={currentPage === totalPages}
+              style={{
+                padding: '8px 12px',
+                background: currentPage === totalPages ? '#95a5a6' : '#3498db',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Last
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

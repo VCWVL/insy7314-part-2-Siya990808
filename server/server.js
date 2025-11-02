@@ -132,6 +132,11 @@ app.get('/api/auth/csrf-token', csrfProtection, (req, res) => {
   res.json({ csrfToken: req.csrfToken() });
 });
 
+// ADD THIS FOR EMPLOYEE ROUTES:
+app.get('/api/employeeauth/csrf-token', csrfProtection, (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+});
+
 // 7. LOGGING
 app.use(morgan('combined'));
 
@@ -149,13 +154,15 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://bankinguser:bankingpa
 const authRoutes = require('./routes/auth');
 const transactionRoutes = require('./routes/transactions');
 const userRoutes = require('./routes/users');
+const employeeAuthRoutes = require('./routes/employeeAuth');
+const employeeTransactionRoutes = require('./routes/employeeTransactions');
 
 // Apply routes with appropriate rate limiting
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/transactions', csrfProtection, transactionRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/employee/auth', authLimiter, require('./routes/employeeAuth'));
-app.use('/api/employee/transactions', require('./routes/employeeTransactions'));
+app.use('/api/employeeauth', authLimiter, employeeAuthRoutes); // ← FIXED PATH
+app.use('/api/employee/transactions', employeeTransactionRoutes);
 
 // Health check endpoint (no rate limiting)
 app.get('/health', (req, res) => {
