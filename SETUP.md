@@ -116,4 +116,4 @@ npm test           # Run tests
 cd server && npm run dev    # Backend development
 cd client && npm start      # Frontend development  
 npm test                    # Run tests locally
-npm run test-db           # Test database connection
+npm run test-db            # Test database connection
