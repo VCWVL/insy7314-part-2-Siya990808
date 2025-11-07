@@ -149,6 +149,12 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://bankinguser:bankingpa
 .then(() => console.log('✅ MongoDB Connected'))
 .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
+// Database reset route for testing
+if (process.env.ALLOW_DB_RESET === "true") {
+  const { resetDatabase } = require("./Controllers/resetController");
+  app.post("/reset", resetDatabase);
+}
+
 // ========== ROUTES ==========
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -214,16 +220,18 @@ app.use('*', (req, res) => {
 // ========== SERVER STARTUP ==========
 const PORT = process.env.PORT || 5000;
 
-// HTTP Server
-const httpServer = app.listen(PORT, () => {
-  console.log(` HTTP Server running on port ${PORT}`);
-  console.log(`📍 Access at: http://localhost:${PORT}`);
-  console.log('✅ Security features active:');
-  console.log('   • Rate Limiting & DDoS Protection');
-  console.log('   • CSRF Protection');
-  console.log('   • XSS Protection');
-  console.log('   • Security Headers (Helmet.js)');
-  console.log('   • Session Security');
-});
+// Only start the server if not in test mode
+if (process.env.NODE_ENV !== 'test') {
+  const httpServer = app.listen(PORT, () => {
+    console.log(` HTTP Server running on port ${PORT}`);
+    console.log(`📍 Access at: http://localhost:${PORT}`);
+    console.log('✅ Security features active:');
+    console.log('   • Rate Limiting & DDoS Protection');
+    console.log('   • CSRF Protection');
+    console.log('   • XSS Protection');
+    console.log('   • Security Headers (Helmet.js)');
+    console.log('   • Session Security');
+  });
+}
 
 module.exports = app;

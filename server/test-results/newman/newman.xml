@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Banking App API Tests - PRODUCTION READY" tests="7" time="0.890">
+  <testsuite name="🔄 0. Reset Database &amp; Setup / Reset Database" id="97effc2c-3457-4c0c-a93f-4c2e1e307743" timestamp="2025-11-07T08:19:11.847Z" tests="1" failures="0" errors="0" time="0.309">
+    <testcase name="Database reset" time="0.309" classname="0ResetDatabaseAmpSetupResetDatabase"/>
+  </testsuite>
+  <testsuite name="🔄 0. Reset Database &amp; Setup / Get CSRF Token" id="d4761047-c932-4f40-9628-407192ac58bb" timestamp="2025-11-07T08:19:11.847Z" tests="1" failures="0" errors="0" time="0.015">
+    <testcase name="CSRF token received" time="0.015" classname="0ResetDatabaseAmpSetupGetCsrfToken"/>
+  </testsuite>
+  <testsuite name="👤 1. Customer Flow - Real Data / Register Customer - VALID DATA" id="1bc8e5d3-23a6-478d-8f62-fc164317cf65" timestamp="2025-11-07T08:19:11.847Z" tests="1" failures="0" errors="0" time="0.015">
+    <testcase name="Customer registration" time="0.015" classname="1CustomerFlowRealDataRegisterCustomerValidData"/>
+  </testsuite>
+  <testsuite name="👤 1. Customer Flow - Real Data / Login Customer - GET REAL TOKEN" id="5bbefdc5-e5ca-4f38-9425-793cbcadf119" timestamp="2025-11-07T08:19:11.847Z" tests="1" failures="0" errors="0" time="0.011">
+    <testcase name="Customer login" time="0.011" classname="1CustomerFlowRealDataLoginCustomerGetRealToken"/>
+  </testsuite>
+  <testsuite name="👤 1. Customer Flow - Real Data / Get Customer Profile" id="e4b24ff0-aeae-4066-8504-f45981a30e17" timestamp="2025-11-07T08:19:11.847Z" tests="1" failures="0" errors="0" time="0.007">
+    <testcase name="Profile access" time="0.007" classname="1CustomerFlowRealDataGetCustomerProfile"/>
+  </testsuite>
+  <testsuite name="💳 2. Transaction Test - VALID DATA / Create Valid Transaction" id="201d4e4c-e705-453d-aa0e-d3cb0cc58cdb" timestamp="2025-11-07T08:19:11.847Z" tests="1" failures="0" errors="0" time="0.019">
+    <testcase name="Transaction creation" time="0.019" classname="2TransactionTestValidDataCreateValidTransaction"/>
+  </testsuite>
+  <testsuite name="🏁 3. Final Health Check / Final Health Verification" id="1c70646c-bf66-4621-b5ed-9b0df867e5cd" timestamp="2025-11-07T08:19:11.847Z" tests="2" failures="0" errors="0" time="0.514">
+    <testcase name="Final health check" time="0.514" classname="3FinalHealthCheckFinalHealthVerification"/>
+    <testcase name="🚀 PIPELINE READY - All endpoints responsive" time="0.514" classname="3FinalHealthCheckFinalHealthVerification"/>
+  </testsuite>
+</testsuites>

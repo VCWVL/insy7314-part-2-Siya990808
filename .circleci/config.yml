@@ -1,0 +1,209 @@
+version: 2.1
+
+executors:
+  node_executor:
+    docker:
+      - image: cimg/node:22.0
+    resource_class: medium
+
+  base_docker:
+    docker:
+      - image: cimg/base:stable
+    resource_class: medium
+
+jobs:
+  # 🧪 1. Lint + Security + Jest Tests + SonarCloud
+  lint_and_test:
+    executor: node_executor
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+            - v1-npm-{{ arch }}-{{ checksum "package-lock.json" }}
+            - v1-npm-{{ arch }}
+            - v1-npm-
+
+      - run:
+          name: Install dependencies
+          command: npm ci
+
+      - save_cache:
+          key: v1-npm-{{ arch }}-{{ checksum "package-lock.json" }}
+          paths:
+            - ~/.npm
+
+      - run:
+          name: Security audit
+          command: npm run security:audit
+
+      - run:
+          name: Run ESLint
+          command: npm run lint
+
+      - run:
+          name: Setup test directories
+          command: npm run ci:setup
+
+      - run:
+          name: Run Jest tests with coverage
+          command: npm run test:pipeline
+
+      - store_test_results:
+          path: test-results/jest
+
+      - store_artifacts:
+          path: coverage
+          destination: coverage
+
+      # 🔍 ADD THIS SONARCLOUD STEP (MISSING!)
+      - run:
+          name: SonarCloud Code Analysis
+          command: |
+            # Install SonarScanner
+            curl -sSLo $HOME/sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+            unzip -o $HOME/sonar-scanner.zip -d $HOME/
+            export PATH="$HOME/sonar-scanner-5.0.1.3006-linux/bin:$PATH"
+            
+            # Run SonarCloud analysis
+            sonar-scanner \
+              -Dsonar.projectKey=$SONAR_PROJECT_KEY \
+              -Dsonar.organization=$SONAR_ORGANIZATION \
+              -Dsonar.sources=. \
+              -Dsonar.host.url=https://sonarcloud.io \
+              -Dsonar.token=$SONAR_TOKEN \
+              -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+              -Dsonar.coverage.exclusions=**/node_modules/**,**/test/**,**/postman/**
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - coverage
+            - node_modules
+
+  # 🐳 2. Docker Build + Newman API Tests
+  docker_build_and_newman_tests:
+    executor: base_docker
+    steps:
+      - checkout
+      - setup_remote_docker
+
+      - run:
+          name: Build Docker image
+          command: |
+            docker build -t banking-backend-test .
+
+      - run:
+          name: Run container for testing
+          command: |
+            docker run -d --name banking-app \
+              -p 5000:5000 \
+              -e NODE_ENV=test \
+              -e PORT=5000 \
+              -e USE_HTTPS=false \
+              -e ALLOW_DB_RESET=true \
+              -e MONGO_URI=$MONGO_URI \
+              -e JWT_SECRET=$JWT_SECRET \
+              -e SESSION_SECRET=$SESSION_SECRET \
+              banking-backend-test
+
+            echo "Waiting for banking app to start..."
+            for i in {1..30}; do
+              if curl -f http://localhost:5000/health >/dev/null 2>&1; then
+                echo "Banking app is healthy!"
+                break
+              fi
+              echo "Waiting for banking app to start... ($i/30)"
+              sleep 2
+            done
+
+      - run:
+          name: Reset test database
+          command: |
+            curl -sSf -X POST http://localhost:5000/reset || echo "Reset endpoint not available"
+
+      - run:
+          name: Run banking API tests with Newman
+          command: |
+            npm run newman
+
+      - run:
+          name: Reset database after tests
+          when: always
+          command: |
+            curl -sSf -X POST http://localhost:5000/reset || true
+
+      - run:
+          name: Cleanup containers
+          when: always
+          command: |
+            docker rm -f banking-app || true
+
+      - store_test_results:
+          path: test-results/newman
+
+      - store_artifacts:
+          path: test-results
+          destination: test-results
+
+  # 🌐 3. Deploy to Render
+  deploy_to_render:
+    docker:
+      - image: cimg/node:22.0
+    resource_class: medium
+    environment:
+      HEALTH_DELAY_SECS: "90"
+      HEALTH_RETRY_SECS: "10"
+      HEALTH_MAX_ATTEMPTS: "12"
+    steps:
+      - run:
+          name: Trigger Render Deploy
+          command: |
+            test -n "$RENDER_DEPLOY_HOOK" || { echo "RENDER_DEPLOY_HOOK missing"; exit 1; }
+            echo "Triggering deployment to Render..."
+            curl -fsSL -X POST "$RENDER_DEPLOY_HOOK"
+            echo "Deployment triggered successfully."
+
+      - run:
+          name: Check Render service health
+          command: |
+            test -n "$RENDER_SERVICE_URL" || { echo "RENDER_SERVICE_URL missing"; exit 1; }
+            echo "Waiting 90 seconds for deployment to complete..."
+            sleep 90
+            
+            ATTEMPTS=0
+            until [ "$ATTEMPTS" -ge "12" ]; do
+              HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "$RENDER_SERVICE_URL/health" || echo "000")
+              echo "Health check attempt $((ATTEMPTS+1)): $HTTP_CODE"
+              
+              if [ "$HTTP_CODE" = "200" ]; then
+                echo "✅ Banking app is healthy and responding!"
+                exit 0
+              fi
+              
+              ATTEMPTS=$((ATTEMPTS+1))
+              sleep 10
+            done
+            
+            echo "❌ Banking app health check failed after 12 attempts"
+            exit 1
+
+workflows:
+  banking-pipeline:
+    jobs:
+      - lint_and_test:
+          filters:
+            branches:
+              only: main
+      - docker_build_and_newman_tests:
+          requires:
+            - lint_and_test
+          filters:
+            branches:
+              only: main
+      - deploy_to_render:
+          requires:
+            - docker_build_and_newman_tests
+          filters:
+            branches:
+              only: main

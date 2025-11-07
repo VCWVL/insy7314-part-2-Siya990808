@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="3" failures="0" errors="0" time="3.417">
+  <testsuite name="Authentication API" errors="0" failures="0" skipped="0" timestamp="2025-11-07T08:54:20" time="2.528" tests="1">
+    <testcase classname="Authentication API health endpoint should work" name="Authentication API health endpoint should work" time="0.095">
+    </testcase>
+  </testsuite>
+  <testsuite name="Health Check API" errors="0" failures="0" skipped="0" timestamp="2025-11-07T08:54:20" time="2.525" tests="2">
+    <testcase classname="Health Check API should return health status" name="Health Check API should return health status" time="0.094">
+    </testcase>
+    <testcase classname="Health Check API should return database status" name="Health Check API should return database status" time="0.008">
+    </testcase>
+  </testsuite>
+</testsuites>

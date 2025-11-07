@@ -87,3 +87,33 @@ npm test           # Run tests
 4. **Test login** functionality
 5. **Test payment forms** with validation
 6. **Check HTTPS** at https://localhost:5001
+
+## CI/CD Pipeline Information
+
+### Automated Pipeline Features
+✅ **Automated Testing** - Runs on every push to main branch  
+✅ **Quality Gates** - SonarCloud analysis with coverage requirements  
+✅ **Container Testing** - Docker build + Newman API tests  
+✅ **Auto-Deployment** - Deploys to Render when all checks pass  
+✅ **Security Scanning** - npm audit + vulnerability checks  
+
+### Pipeline Components
+
+#### Testing & Quality
+- **Jest Tests**: Unit tests with coverage reporting (25% minimum)
+- **Newman Tests**: API endpoint testing against live container
+- **SonarCloud**: Code quality analysis that can block deployments
+- **Security Audit**: Automated npm audit for vulnerabilities
+
+#### Deployment
+- **Render.com**: Automatic deployment to production
+- **Health Checks**: Verifies deployment success
+- **Zero Downtime**: Seamless updates with health verification
+
+#### Your Local Development Stays Exactly The Same:
+```bash
+# Use the same commands as before:
+cd server && npm run dev    # Backend development
+cd client && npm start      # Frontend development  
+npm test                    # Run tests locally
+npm run test-db            # Test database connection
